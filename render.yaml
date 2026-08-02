@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: learnsphere-backend
+    env: node
+    rootDir: server
+    buildCommand: npm run build
+    startCommand: node index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: PORT
+        value: 5000
