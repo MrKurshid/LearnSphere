@@ -4,7 +4,8 @@ import App from "./App.jsx";
 import { UserContextProvider } from "./context/UserContext.jsx";
 import { CourseContextProvider } from "./context/CoursesContext.jsx";
 
-export const server = "http://localhost:5000";
+export const server =
+  import.meta.env.VITE_SERVER_URL || "http://localhost:5000";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

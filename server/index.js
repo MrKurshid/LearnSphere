@@ -4,7 +4,14 @@ import { connectDb } from "./database/db.js";
 import Razorpay from "razorpay";
 import cors from "cors";
 
+import fs from "fs";
+
 dotenv.config();
+
+// ensure uploads directory exists
+if (!fs.existsSync("./uploads")) {
+  fs.mkdirSync("./uploads");
+}
 
 export const instance = new Razorpay({
   key_id: process.env.Razorpay_key,
@@ -13,11 +20,21 @@ export const instance = new Razorpay({
 
 const app = express();
 
-// using middlewair
+// using middleware
 app.use(express.json());
-app.use(cors());
 
-const port = process.env.PORT;
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"]
+  : "*";
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
+const port = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
   res.send("Server is working");

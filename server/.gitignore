@@ -1,1 +1,37 @@
+# Node
+node_modules/
+.DS_Store
+*.pem
+
+# Environment
 .env
+.env.*
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+playwright-report/
+
+# Cloudflare
+.wrangler/
+
+# Prisma
+# .prisma/client/
