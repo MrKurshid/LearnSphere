@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "build": "rm -rf node_modules package-lock.json && npm install",
-    "postinstall": "npm rebuild",
+    "build": "npm install",
     "dev": "nodemon index.js"
   },
   "engines": {
