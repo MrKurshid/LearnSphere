@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import { CourseData } from "../../context/CoursesContext";
 import { motion } from "framer-motion";
-import { Clock, User, Star, Trash2, PlayCircle, BookOpenCheck, Users } from "lucide-react";
+import { Clock, User, Star, Trash2, PlayCircle, BookOpenCheck } from "lucide-react";
 
 const CourseCard = ({ course }) => {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ const CourseCard = ({ course }) => {
 
   const deleteHandler = async (id) => {
     if (confirm("Are you sure you want to delete this course?")) {
+      console.log(`[API Call] DELETE /api/course/${id}`);
       try {
         const { data } = await axios.delete(`${server}/api/course/${id}`, {
           headers: {
@@ -22,15 +23,19 @@ const CourseCard = ({ course }) => {
           },
         });
 
+        console.log(`[API Response] DELETE /api/course/${id} success:`, data.message);
         toast.success(data.message);
         fetchCourses();
       } catch (error) {
+        console.error(`[API Error] DELETE /api/course/${id} failed:`, error.response?.data);
         toast.error(error.response?.data?.message || "Failed to delete course");
       }
     }
   };
 
-  const isSubscribed = user?.subscription?.includes(course._id);
+  const isSubscribed = user?.subscription?.some(
+    (subId) => subId?.toString() === course._id?.toString()
+  );
 
   return (
     <motion.div

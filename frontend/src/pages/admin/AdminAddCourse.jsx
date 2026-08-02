@@ -48,6 +48,7 @@ const AdminAddCourse = () => {
     formData.append("price", price);
     formData.append("file", image);
 
+    console.log("[API Call] POST /api/course/new for course:", title);
     try {
       const { data } = await axios.post(`${server}/api/course/new`, formData, {
         headers: {
@@ -55,11 +56,13 @@ const AdminAddCourse = () => {
         },
       });
 
+      console.log("[API Response] POST /api/course/new success:", data.message);
       toast.success(data.message);
       setBtnLoading(false);
       fetchCourses();
       navigate("/admin/courses");
     } catch (error) {
+      console.error("[API Error] POST /api/course/new failed:", error.response?.data);
       toast.error(error.response?.data?.message || "Failed to add course");
       setBtnLoading(false);
     }

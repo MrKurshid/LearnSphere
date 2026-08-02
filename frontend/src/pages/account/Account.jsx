@@ -4,17 +4,13 @@ import { CourseData } from "../../context/CoursesContext";
 import { useNavigate } from "react-router-dom";
 import CourseCard from "../../components/coursecard/CourseCard";
 import ProfileCard from "../../components/ProfileCard";
-import OrderTable from "../../components/OrderTable";
 import StatsCard from "../../components/StatsCard";
 import {
   BookOpen,
   Award,
   CheckCircle,
   PlayCircle,
-  User,
-  Clock,
   Sparkles,
-  CreditCard,
   Zap,
 } from "lucide-react";
 
@@ -23,7 +19,7 @@ const Account = ({ user }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  // Subscribed courses
+  // Real subscribed courses from user DB object
   const mySubscribedCourses = courses
     ? courses.filter((c) => user?.subscription?.includes(c._id))
     : [];
@@ -47,7 +43,7 @@ const Account = ({ user }) => {
                 Welcome back, {user?.name}! 👋
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                Ready to continue your learning journey today?
+                Ready to continue learning today?
               </p>
             </div>
           </div>
@@ -79,7 +75,7 @@ const Account = ({ user }) => {
 
         {activeTab === "dashboard" ? (
           <>
-            {/* REALISTIC STATISTICS (NO FAKE CHARTS) */}
+            {/* REAL DATABASE STATISTICS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <StatsCard
                 title="Enrolled Courses"
@@ -108,7 +104,7 @@ const Account = ({ user }) => {
                   </div>
                   <h3 className="text-xl font-bold">{lastActiveCourse.title}</h3>
                   <p className="text-xs text-slate-400">
-                    Instructor: {lastActiveCourse.createdBy} • Progress: 50%
+                    Instructor: {lastActiveCourse.createdBy}
                   </p>
                 </div>
 
@@ -117,7 +113,7 @@ const Account = ({ user }) => {
                   className="w-full md:w-auto px-6 py-3 rounded-xl bg-[#7C8A00] hover:bg-[#646f00] text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
                   <PlayCircle className="w-4 h-4" />
-                  <span>Continue Course</span>
+                  <span>Resume Course</span>
                 </button>
               </div>
             )}
@@ -150,41 +146,6 @@ const Account = ({ user }) => {
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* EARNED CERTIFICATES SECTION */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Award className="w-5 h-5 text-[#7C8A00]" />
-                Earned Certificates
-              </h2>
-              {mySubscribedCourses.length > 0 ? (
-                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Award className="w-8 h-8 text-[#7C8A00]" />
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900">
-                        {mySubscribedCourses[0].title} Certificate
-                      </h4>
-                      <p className="text-[11px] text-slate-500">Issued August 2026</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                    Verified
-                  </span>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">Complete courses to earn shareable certificates.</p>
-              )}
-            </div>
-
-            {/* PURCHASE HISTORY */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-[#7C8A00]" />
-                Purchase History
-              </h2>
-              <OrderTable />
             </div>
           </>
         ) : (

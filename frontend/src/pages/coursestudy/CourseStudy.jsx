@@ -34,12 +34,14 @@ const CourseStudy = () => {
   const [btnLoading, setBtnLoading] = useState(false);
 
   async function fetchLectures() {
+    console.log(`[API Call] GET /api/lectures/${params.id}`);
     try {
       const { data } = await axios.get(`${server}/api/lectures/${params.id}`, {
         headers: {
           token: localStorage.getItem("token"),
         },
       });
+      console.log(`[API Response] GET /api/lectures/${params.id} returned ${data.lectures?.length} lectures`);
       setLectures(data.lectures);
       if (data.lectures && data.lectures.length > 0) {
         setLecture(data.lectures[0]);
@@ -47,7 +49,7 @@ const CourseStudy = () => {
       }
       setLoading(false);
     } catch (error) {
-      console.log(error);
+      console.error(`[API Error] GET /api/lectures/${params.id} failed:`, error.response?.data);
       toast.error(error.response?.data?.message || "Failed to load lectures");
       setLoading(false);
     }
@@ -93,6 +95,7 @@ const CourseStudy = () => {
     formData.append("description", description);
     formData.append("file", video);
 
+    console.log(`[API Call] POST /api/course/${params.id} (Add Lecture: ${title})`);
     try {
       const { data } = await axios.post(
         `${server}/api/course/${params.id}`,
@@ -104,6 +107,7 @@ const CourseStudy = () => {
         }
       );
 
+      console.log(`[API Response] POST /api/course/${params.id} success:`, data.message);
       toast.success(data.message);
       setBtnLoading(false);
       setTitle("");
@@ -112,6 +116,7 @@ const CourseStudy = () => {
       setShowAddForm(false);
       fetchLectures();
     } catch (error) {
+      console.error(`[API Error] POST /api/course/${params.id} failed:`, error.response?.data);
       toast.error(error.response?.data?.message || "Failed to add lecture");
       setBtnLoading(false);
     }
@@ -119,15 +124,18 @@ const CourseStudy = () => {
 
   const deleteLectureHandler = async (id) => {
     if (confirm("Are you sure you want to delete this lecture?")) {
+      console.log(`[API Call] DELETE /api/lecture/${id}`);
       try {
         const { data } = await axios.delete(`${server}/api/lecture/${id}`, {
           headers: {
             token: localStorage.getItem("token"),
           },
         });
+        console.log(`[API Response] DELETE /api/lecture/${id} success:`, data.message);
         toast.success(data.message);
         fetchLectures();
       } catch (error) {
+        console.error(`[API Error] DELETE /api/lecture/${id} failed:`, error.response?.data);
         toast.error(error.response?.data?.message || "Failed to delete lecture");
       }
     }

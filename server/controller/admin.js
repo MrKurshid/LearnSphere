@@ -87,15 +87,21 @@ export const deleteCourse = TryCatch(async (req, res) => {
   });
 });
 
+import { Payment } from "../models/payment.js";
+
 export const getAllStats = TryCatch(async (req, res) => {
   const totalCourses = (await Courses.find()).length;
   const totalLectures = (await Lecture.find()).length;
   const totalUsers = (await User.find()).length;
+  const users = await User.find({}).select("-password");
+  const payments = await Payment.find({}).sort({ createdAt: -1 });
 
   const stats = {
     totalCourses,
     totalLectures,
     totalUsers,
+    users,
+    payments,
   };
   res.json({
     stats,

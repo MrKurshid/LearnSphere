@@ -6,13 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   User,
-  Settings,
   LogOut,
   ChevronDown,
   Shield,
   BookOpen,
-  Sparkles,
-  CheckCircle2,
 } from "lucide-react";
 
 const ProfileDropdown = () => {
@@ -31,7 +28,6 @@ const ProfileDropdown = () => {
     navigate("/login");
   };
 
-  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -45,15 +41,9 @@ const ProfileDropdown = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const notifications = [
-    { id: 1, title: "Welcome to LearnSphere!", time: "Just now", read: false },
-    { id: 2, title: "New Web Dev course released", time: "2 hours ago", read: false },
-    { id: 3, title: "Keep up your 7-day learning streak!", time: "1 day ago", read: true },
-  ];
-
   return (
     <div className="flex items-center gap-3">
-      {/* NOTIFICATIONS BELL DROPDOWN */}
+      {/* NOTIFICATIONS BELL */}
       <div className="relative" ref={notifRef}>
         <button
           onClick={() => {
@@ -64,8 +54,6 @@ const ProfileDropdown = () => {
           aria-label="Notifications"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#7C8A00] animate-ping" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#7C8A00]" />
         </button>
 
         <AnimatePresence>
@@ -75,29 +63,15 @@ const ProfileDropdown = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 mt-3 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl py-3 z-50"
+              className="absolute right-0 mt-3 w-72 bg-white rounded-2xl border border-gray-100 shadow-xl p-4 text-center z-50"
             >
-              <div className="px-4 pb-2 border-b border-gray-100 flex items-center justify-between">
-                <span className="font-bold text-sm text-[#111827]">Notifications</span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#7C8A00]/10 text-[#7C8A00]">
-                  3 New
-                </span>
-              </div>
-
-              <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
-                {notifications.map((n) => (
-                  <div key={n.id} className="p-3 hover:bg-gray-50/80 transition-colors">
-                    <p className="text-xs font-semibold text-[#111827]">{n.title}</p>
-                    <span className="text-[10px] text-gray-400">{n.time}</span>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs font-semibold text-gray-500">No new notifications</p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* USER PROFILE AVATAR DROPDOWN */}
+      {/* USER PROFILE AVATAR DROPDOWN (Settings Button Removed) */}
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => {
@@ -134,18 +108,14 @@ const ProfileDropdown = () => {
                 </div>
               </div>
 
-              {/* Menu Links */}
+              {/* Menu Links (No Settings button) */}
               <div className="space-y-0.5">
                 <Link
-                  to={user?.role === "admin" ? "/dashboard" : "/account"}
+                  to={user?.role === "admin" ? "/admin/profile" : "/account"}
                   onClick={() => setDropdownOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#111827] hover:bg-gray-100 transition-colors"
                 >
-                  {user?.role === "admin" ? (
-                    <Shield className="w-4 h-4 text-[#7C8A00]" />
-                  ) : (
-                    <User className="w-4 h-4 text-[#7C8A00]" />
-                  )}
+                  <User className="w-4 h-4 text-[#7C8A00]" />
                   <span>{user?.role === "admin" ? "Admin Profile" : "My Profile"}</span>
                 </Link>
 
@@ -156,20 +126,9 @@ const ProfileDropdown = () => {
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#111827] hover:bg-gray-100 transition-colors"
                   >
                     <BookOpen className="w-4 h-4 text-[#7C8A00]" />
-                    <span>SaaS Dashboard</span>
+                    <span>Admin Dashboard</span>
                   </Link>
                 )}
-
-                <button
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    toast.success("Settings panel");
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#111827] hover:bg-gray-100 transition-colors text-left"
-                >
-                  <Settings className="w-4 h-4 text-[#7C8A00]" />
-                  <span>Settings</span>
-                </button>
 
                 <div className="pt-1 mt-1 border-t border-gray-100">
                   <button

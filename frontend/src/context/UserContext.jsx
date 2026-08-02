@@ -13,12 +13,14 @@ export const UserContextProvider = ({ children }) => {
 
   async function loginUser(email, password, navigate) {
     setbtnLoading(true);
+    console.log("[API Call] POST /api/user/login for email:", email);
     try {
       const { data } = await axios.post(`${server}/api/user/login`, {
         email,
         password,
       });
 
+      console.log("[API Response] POST /api/user/login success:", data);
       toast.success(data.message);
       localStorage.setItem("token", data.token);
       setUser(data.user);
@@ -26,14 +28,16 @@ export const UserContextProvider = ({ children }) => {
       setbtnLoading(false);
       navigate("/");
     } catch (error) {
+      console.error("[API Error] POST /api/user/login failed:", error.response?.data);
       setisAuth(false);
       setbtnLoading(false);
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Login failed");
     }
   }
 
   async function registerUser(name, email, password, navigate) {
     setbtnLoading(true);
+    console.log("[API Call] POST /api/user/register for email:", email);
     try {
       const { data } = await axios.post(`${server}/api/user/register`, {
         name,
@@ -41,47 +45,54 @@ export const UserContextProvider = ({ children }) => {
         password,
       });
 
+      console.log("[API Response] POST /api/user/register success:", data);
       toast.success(data.message);
       localStorage.setItem("activationToken", data.activationToken);
       setbtnLoading(false);
       navigate("/verify");
     } catch (error) {
+      console.error("[API Error] POST /api/user/register failed:", error.response?.data);
       setbtnLoading(false);
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Registration failed");
     }
   }
 
   async function verifyOtp(otp, navigate) {
     setbtnLoading(true);
     const activationToken = localStorage.getItem("activationToken");
+    console.log("[API Call] POST /api/user/verify with token length:", activationToken?.length);
     try {
       const { data } = await axios.post(`${server}/api/user/verify`, {
         otp,
         activationToken,
       });
 
+      console.log("[API Response] POST /api/user/verify success:", data);
       toast.success(data.message);
       navigate("/login");
       setbtnLoading(false);
       localStorage.clear();
     } catch (error) {
+      console.error("[API Error] POST /api/user/verify failed:", error.response?.data);
       setbtnLoading(false);
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Verification failed");
     }
   }
 
   async function fetchUser() {
+    console.log("[API Call] GET /api/user/me");
     try {
       const { data } = await axios.get(`${server}/api/user/me`, {
         headers: {
           token: localStorage.getItem("token"),
         },
       });
+      console.log("[API Response] GET /api/user/me user profile loaded:", data.user);
       setisAuth(true);
       setUser(data.user);
       setLoading(false);
     } catch (error) {
-      console.log(error);
+      console.log("[API Info] GET /api/user/me - User not authenticated or invalid token:", error.response?.data?.message);
       setLoading(false);
     }
   }
@@ -89,6 +100,7 @@ export const UserContextProvider = ({ children }) => {
   useEffect(() => {
     fetchUser();
   }, []);
+
   return (
     <UserContext.Provider
       value={{
@@ -101,6 +113,7 @@ export const UserContextProvider = ({ children }) => {
         loading,
         registerUser,
         verifyOtp,
+        fetchUser,
       }}
     >
       {children}

@@ -9,89 +9,14 @@
   --color-card-bg: #FFFFFF;
   --color-dark-text: #111827;
   --color-grey-text: #6B7280;
-  --color-success: #22C55E;
-  --color-error: #EF4444;
-  --font-poppins: 'Poppins', sans-serif;
 }
 
 @layer base {
   body {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
     font-family: 'Poppins', sans-serif;
     background-color: #FAFAFA;
     color: #111827;
   }
-}
-
-/* Glassmorphism Utilities */
-.glass {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(229, 231, 235, 0.6);
-}
-
-.glass-dark {
-  background: rgba(17, 24, 39, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #FAFAFA;
-}
-::-webkit-scrollbar-thumb {
-  background: #C8D43A;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #7C8A00;
-}
-
-/* Button class compatibility for existing onClick handlers */
-.common-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background-color: #7C8A00;
-  color: #FFFFFF;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px 0 rgba(124, 138, 0, 0.25);
-  border: none;
-}
-
-.common-btn:hover {
-  background-color: #646f00;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px 0 rgba(124, 138, 0, 0.35);
-}
-
-.common-btn:active {
-  transform: translateY(0);
-}
-
-.common-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-  transform: none;
 }

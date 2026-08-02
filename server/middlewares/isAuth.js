@@ -10,13 +10,18 @@ export const isAuth = async (req, res, next) => {
       });
     }
     const decodedData = jwt.verify(token, process.env.Jwt_Sec);
-
     req.user = await User.findById(decodedData._id);
+
+    if (!req.user) {
+      return res.status(403).json({
+        message: "Please Login",
+      });
+    }
 
     next();
   } catch (error) {
-    res.status(500).json({
-      message: "Login First",
+    res.status(403).json({
+      message: "Please Login",
     });
   }
 };
@@ -25,7 +30,7 @@ export const isAdmin = (req, res, next) => {
   try {
     if (req.user.role !== "admin")
       return res.status(403).json({
-        message: "you are not anmin",
+        message: "You are not an admin",
       });
     next();
   } catch (error) {

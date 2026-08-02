@@ -11,11 +11,8 @@ import {
   Video,
   Users,
   CreditCard,
-  PlusCircle,
   Plus,
   ArrowRight,
-  Shield,
-  Layers,
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -24,18 +21,24 @@ const AdminDashboard = () => {
     totalCourses: 0,
     totalLectures: 0,
     totalUsers: 0,
+    users: [],
+    payments: [],
   });
 
   async function fetchStats() {
+    console.log("[API Call] GET /api/stats");
     try {
       const { data } = await axios.get(`${server}/api/stats`, {
         headers: {
           token: localStorage.getItem("token"),
         },
       });
-      setStats(data.stats);
+      console.log("[API Response] GET /api/stats:", data.stats);
+      if (data.stats) {
+        setStats(data.stats);
+      }
     } catch (error) {
-      console.log(error);
+      console.error("[API Error] GET /api/stats failed:", error.response?.data);
     }
   }
 
@@ -74,7 +77,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* USEFUL STATISTICS CARDS (NO CHARTS) */}
+      {/* REAL DATABASE STATISTICS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Courses"
@@ -83,17 +86,17 @@ const AdminDashboard = () => {
         />
         <StatsCard
           title="Video Lectures"
-          value={stats.totalLectures || 12}
+          value={stats.totalLectures || 0}
           icon={Video}
         />
         <StatsCard
           title="Registered Students"
-          value={stats.totalUsers || 24}
+          value={stats.totalUsers || 0}
           icon={Users}
         />
         <StatsCard
-          title="Total Orders"
-          value="18"
+          title="Recorded Payments"
+          value={stats.payments ? stats.payments.length : 0}
           icon={CreditCard}
         />
       </div>
@@ -121,7 +124,7 @@ const AdminDashboard = () => {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-slate-500">No courses created yet.</p>
+          <p className="text-xs text-slate-500">No courses created in database yet.</p>
         )}
       </div>
 
@@ -130,18 +133,18 @@ const AdminDashboard = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-[#7C8A00]" />
-            Recent Student Orders
+            Recent Student Payments
           </h2>
           <Link
             to="/admin/orders"
             className="text-xs font-semibold text-[#7C8A00] hover:underline flex items-center gap-1"
           >
-            <span>View Orders</span>
+            <span>View All Payments</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <OrderTable />
+        <OrderTable orders={stats.payments} />
       </div>
     </div>
   );
