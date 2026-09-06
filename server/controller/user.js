@@ -40,7 +40,14 @@ export const register = TryCatch(async (req, res) => {
     otp,
   };
 
-  await sendMail(email, "E learning", data);
+  try {
+    await sendMail(email, "E learning", data);
+  } catch (mailErr) {
+    console.error("[SMTP Error] Failed to send OTP email:", mailErr);
+    return res.status(500).json({
+      message: `Failed to send OTP email (${mailErr.message || "Connection timeout"}). Please verify backend Gmail App Password or SMTP configuration on Render.`,
+    });
+  }
 
   res.status(200).json({
     message: "Otp send to your mail",

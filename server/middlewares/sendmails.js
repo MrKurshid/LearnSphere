@@ -1,14 +1,34 @@
 import { createTransport } from "nodemailer";
 
 const sendMail = async (email, subject, data) => {
-  const transport = createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    auth: {
-      user: process.env.Gmail,
-      pass: process.env.Password,
-    },
-  });
+  const transportOptions = process.env.SMTP_SERVICE
+    ? {
+        service: process.env.SMTP_SERVICE,
+        auth: {
+          user: process.env.Gmail,
+          pass: process.env.Password,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+      }
+    : {
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: Number(process.env.SMTP_PORT || 465) === 465,
+        auth: {
+          user: process.env.Gmail,
+          pass: process.env.Password,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+        tls: {
+          rejectUnauthorized: false,
+        },
+      };
+
+  let transport = createTransport(transportOptions);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -57,12 +77,50 @@ const sendMail = async (email, subject, data) => {
 </html>
 `;
 
-  await transport.sendMail({
-    from: process.env.Gmail,
-    to: email,
-    subject,
-    html,
-  });
+  try {
+    await transport.sendMail({
+      from: process.env.Gmail,
+      to: email,
+      subject,
+      html,
+    });
+  } catch (error) {
+    if (
+      !process.env.SMTP_HOST &&
+      !process.env.SMTP_SERVICE &&
+      (error.code === "ETIMEDOUT" ||
+        error.message?.toLowerCase().includes("timeout") ||
+        error.command === "CONN")
+    ) {
+      console.warn(
+        "SMTP Port 465 connection failed/timed out. Attempting fallback to Port 587 (STARTTLS)..."
+      );
+      const fallbackTransport = createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.Gmail,
+          pass: process.env.Password,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+        tls: {
+          rejectUnauthorized: false,
+        },
+      });
+
+      await fallbackTransport.sendMail({
+        from: process.env.Gmail,
+        to: email,
+        subject,
+        html,
+      });
+      return;
+    }
+    throw error;
+  }
 };
 
 export default sendMail;
