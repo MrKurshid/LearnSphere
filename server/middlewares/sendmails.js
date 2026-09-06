@@ -4,15 +4,6 @@ const sendMail = async (email, subject, data) => {
   const gmailUser = process.env.Gmail || process.env.SMTP_USER;
   const gmailPass = process.env.Password || process.env.SMTP_PASS;
 
-  if (!gmailUser || !gmailPass) {
-    throw new Error(
-      "Missing SMTP credentials. Please set 'Gmail' and 'Password' (16-character Google App Password) in your Render environment variables."
-    );
-  }
-
-  // Remove spaces if password was copied directly from Google App Password UI (e.g., 'abcd efgh ijkl mnop' -> 'abcdefghijklmnop')
-  const cleanPass = gmailPass.replace(/\s+/g, "");
-
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,49 +51,143 @@ const sendMail = async (email, subject, data) => {
 </html>
 `;
 
-  // Multiple SMTP configurations for maximum cloud compatibility (Render / Heroku / AWS)
+  // 1. Resend HTTP API (HTTPS Port 443 - Recommended for Render cloud hosting)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      console.log("[Email Service] Attempting delivery via Resend HTTP API...");
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM || "LearnSphere <onboarding@resend.dev>",
+          to: [email],
+          subject: subject,
+          html: html,
+        }),
+      });
+
+      const resData = await res.json();
+      if (res.ok) {
+        console.log(`[Resend Success] OTP email delivered to ${email}`, resData);
+        return;
+      }
+      console.warn(`[Resend API Error]:`, resData);
+    } catch (apiErr) {
+      console.warn(`[Resend API Failed]:`, apiErr.message);
+    }
+  }
+
+  // 2. Brevo HTTP API (HTTPS Port 443 - Recommended for Render cloud hosting)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      console.log("[Email Service] Attempting delivery via Brevo HTTP API...");
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: {
+            name: "LearnSphere",
+            email: gmailUser || "noreply@learnsphere.com",
+          },
+          to: [{ email }],
+          subject: subject,
+          htmlContent: html,
+        }),
+      });
+
+      const resData = await res.json();
+      if (res.ok) {
+        console.log(`[Brevo Success] OTP email delivered to ${email}`, resData);
+        return;
+      }
+      console.warn(`[Brevo API Error]:`, resData);
+    } catch (apiErr) {
+      console.warn(`[Brevo API Failed]:`, apiErr.message);
+    }
+  }
+
+  if (!gmailUser || !gmailPass) {
+    throw new Error(
+      "Missing SMTP/Email credentials. Please set 'RESEND_API_KEY' (Recommended for Render) or 'Gmail' & 'Password' in your Render environment variables."
+    );
+  }
+
+  // Clean up password whitespace if copied from Google App Password UI
+  const cleanPass = gmailPass.replace(/\s+/g, "");
+
+  // 3. Custom/Third-party SMTP Host (e.g. Brevo smtp-relay.brevo.com, SendGrid, Mailgun)
+  if (process.env.SMTP_HOST && process.env.SMTP_HOST !== "smtp.gmail.com") {
+    try {
+      console.log(`[Email Service] Attempting delivery via custom SMTP host ${process.env.SMTP_HOST}...`);
+      const transporter = createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: { user: gmailUser, pass: cleanPass },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 8000,
+      });
+
+      await transporter.sendMail({
+        from: `LearnSphere <${gmailUser}>`,
+        to: email,
+        subject,
+        html,
+      });
+      console.log(`[SMTP Host Success] OTP email delivered to ${email}`);
+      return;
+    } catch (customErr) {
+      console.warn(`[Custom SMTP Warning] ${process.env.SMTP_HOST} connection failed:`, customErr.message);
+    }
+  }
+
+  // 4. Standard Nodemailer Gmail SMTP Strategies (Port 587 / Port 465 / service: "gmail")
   const configurations = [];
 
   if (process.env.SMTP_SERVICE) {
     configurations.push({
       service: process.env.SMTP_SERVICE,
       auth: { user: gmailUser, pass: cleanPass },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 15000,
+      connectionTimeout: 6000,
+      greetingTimeout: 6000,
+      socketTimeout: 6000,
     });
   }
 
-  // Strategy 1: Direct Gmail Service (Recommended for Gmail on cloud hosts)
   configurations.push({
     service: "gmail",
     auth: { user: gmailUser, pass: cleanPass },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 6000,
   });
 
-  // Strategy 2: Standard SMTP Port 587 (STARTTLS)
   configurations.push({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT) || 587,
+    host: "smtp.gmail.com",
+    port: 587,
     secure: false,
     auth: { user: gmailUser, pass: cleanPass },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 6000,
     tls: { rejectUnauthorized: false },
   });
 
-  // Strategy 3: Standard SMTP Port 465 (SSL)
   configurations.push({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    host: "smtp.gmail.com",
     port: 465,
     secure: true,
     auth: { user: gmailUser, pass: cleanPass },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 6000,
     tls: { rejectUnauthorized: false },
   });
 
@@ -125,8 +210,11 @@ const sendMail = async (email, subject, data) => {
     }
   }
 
-  throw lastError || new Error("Failed to send OTP email after trying standard SMTP transport options.");
+  throw new Error(
+    "Render cloud host blocked outbound Gmail SMTP ports (Connection timeout). Please add RESEND_API_KEY or BREVO_API_KEY in Render Environment Variables for HTTPS delivery."
+  );
 };
 
 export default sendMail;
+
 
