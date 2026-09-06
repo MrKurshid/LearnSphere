@@ -1,34 +1,17 @@
 import { createTransport } from "nodemailer";
 
 const sendMail = async (email, subject, data) => {
-  const transportOptions = process.env.SMTP_SERVICE
-    ? {
-        service: process.env.SMTP_SERVICE,
-        auth: {
-          user: process.env.Gmail,
-          pass: process.env.Password,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
-      }
-    : {
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: Number(process.env.SMTP_PORT) || 465,
-        secure: Number(process.env.SMTP_PORT || 465) === 465,
-        auth: {
-          user: process.env.Gmail,
-          pass: process.env.Password,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
-        tls: {
-          rejectUnauthorized: false,
-        },
-      };
+  const gmailUser = process.env.Gmail || process.env.SMTP_USER;
+  const gmailPass = process.env.Password || process.env.SMTP_PASS;
 
-  let transport = createTransport(transportOptions);
+  if (!gmailUser || !gmailPass) {
+    throw new Error(
+      "Missing SMTP credentials. Please set 'Gmail' and 'Password' (16-character Google App Password) in your Render environment variables."
+    );
+  }
+
+  // Remove spaces if password was copied directly from Google App Password UI (e.g., 'abcd efgh ijkl mnop' -> 'abcdefghijklmnop')
+  const cleanPass = gmailPass.replace(/\s+/g, "");
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -70,57 +53,80 @@ const sendMail = async (email, subject, data) => {
 <body>
     <div class="container">
         <h1>OTP Verification</h1>
-        <p>Hello ${data.name} your (One-Time Password) for your account verification is.</p>
+        <p>Hello ${data.name}, your One-Time Password (OTP) for account verification is:</p>
         <p class="otp">${data.otp}</p> 
     </div>
 </body>
 </html>
 `;
 
-  try {
-    await transport.sendMail({
-      from: process.env.Gmail,
-      to: email,
-      subject,
-      html,
-    });
-  } catch (error) {
-    if (
-      !process.env.SMTP_HOST &&
-      !process.env.SMTP_SERVICE &&
-      (error.code === "ETIMEDOUT" ||
-        error.message?.toLowerCase().includes("timeout") ||
-        error.command === "CONN")
-    ) {
-      console.warn(
-        "SMTP Port 465 connection failed/timed out. Attempting fallback to Port 587 (STARTTLS)..."
-      );
-      const fallbackTransport = createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.Gmail,
-          pass: process.env.Password,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
+  // Multiple SMTP configurations for maximum cloud compatibility (Render / Heroku / AWS)
+  const configurations = [];
 
-      await fallbackTransport.sendMail({
-        from: process.env.Gmail,
+  if (process.env.SMTP_SERVICE) {
+    configurations.push({
+      service: process.env.SMTP_SERVICE,
+      auth: { user: gmailUser, pass: cleanPass },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 15000,
+    });
+  }
+
+  // Strategy 1: Direct Gmail Service (Recommended for Gmail on cloud hosts)
+  configurations.push({
+    service: "gmail",
+    auth: { user: gmailUser, pass: cleanPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
+  });
+
+  // Strategy 2: Standard SMTP Port 587 (STARTTLS)
+  configurations.push({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: { user: gmailUser, pass: cleanPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
+    tls: { rejectUnauthorized: false },
+  });
+
+  // Strategy 3: Standard SMTP Port 465 (SSL)
+  configurations.push({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: gmailUser, pass: cleanPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
+    tls: { rejectUnauthorized: false },
+  });
+
+  let lastError = null;
+
+  for (const config of configurations) {
+    try {
+      const transporter = createTransport(config);
+      await transporter.sendMail({
+        from: `LearnSphere <${gmailUser}>`,
         to: email,
         subject,
         html,
       });
+      console.log(`[SMTP Success] OTP email delivered to ${email}`);
       return;
+    } catch (err) {
+      console.warn(`[SMTP Warning] Connection attempt failed:`, err.message);
+      lastError = err;
     }
-    throw error;
   }
+
+  throw lastError || new Error("Failed to send OTP email after trying standard SMTP transport options.");
 };
 
 export default sendMail;
+

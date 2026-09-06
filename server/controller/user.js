@@ -7,6 +7,33 @@ import TryCatch from "../middlewares/tryCatch.js";
 export const register = TryCatch(async (req, res) => {
   const { email, name, password } = req.body;
 
+  if (!email || !name || !password) {
+    return res.status(400).json({
+      message: "Please fill in all fields (name, email, password)",
+    });
+  }
+
+  if (!process.env.Activation_Secret) {
+    console.error("[Config Error] Activation_Secret environment variable is missing on server!");
+    return res.status(500).json({
+      message: "Server configuration error: Activation_Secret environment variable is missing on Render dashboard.",
+    });
+  }
+
+  if (!process.env.Gmail && !process.env.SMTP_USER) {
+    console.error("[Config Error] Gmail environment variable is missing on server!");
+    return res.status(500).json({
+      message: "Server configuration error: Gmail environment variable is missing on Render dashboard.",
+    });
+  }
+
+  if (!process.env.Password && !process.env.SMTP_PASS) {
+    console.error("[Config Error] Password (Gmail App Password) environment variable is missing on server!");
+    return res.status(500).json({
+      message: "Server configuration error: Password (16-character Google App Password) environment variable is missing on Render dashboard.",
+    });
+  }
+
   let user = await User.findOne({ email });
 
   if (user)
@@ -45,7 +72,7 @@ export const register = TryCatch(async (req, res) => {
   } catch (mailErr) {
     console.error("[SMTP Error] Failed to send OTP email:", mailErr);
     return res.status(500).json({
-      message: `Failed to send OTP email (${mailErr.message || "Connection timeout"}). Please verify backend Gmail App Password or SMTP configuration on Render.`,
+      message: `Failed to send OTP email: ${mailErr.message || "Connection timeout"}. Please verify backend Gmail App Password and environment variables on Render.`,
     });
   }
 
@@ -58,14 +85,33 @@ export const register = TryCatch(async (req, res) => {
 export const verifyUser = TryCatch(async (req, res) => {
   const { otp, activationToken } = req.body;
 
-  const verify = jwt.verify(activationToken, process.env.Activation_Secret);
+  if (!activationToken) {
+    return res.status(400).json({
+      message: "Activation token missing or expired. Please register again.",
+    });
+  }
+
+  if (!process.env.Activation_Secret) {
+    return res.status(500).json({
+      message: "Server configuration error: Activation_Secret is missing on server.",
+    });
+  }
+
+  let verify;
+  try {
+    verify = jwt.verify(activationToken, process.env.Activation_Secret);
+  } catch (err) {
+    return res.status(400).json({
+      message: "OTP expired or invalid session. Please register again.",
+    });
+  }
 
   if (!verify)
     return res.status(400).json({
       message: "Otp Expired",
     });
 
-  if (verify.otp !== otp)
+  if (String(verify.otp) !== String(otp))
     return res.status(400).json({
       message: "Wrong Otp",
     });
@@ -114,3 +160,4 @@ export const myProfile = TryCatch(async (req, res) => {
 
   res.json({ user });
 });
+
