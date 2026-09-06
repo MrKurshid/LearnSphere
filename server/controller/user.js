@@ -92,15 +92,18 @@ export const loginUser = TryCatch(async (req, res) => {
   const token = jwt.sign({ _id: user._id }, process.env.Jwt_Sec, {
     expiresIn: "15d",
   });
+  const userObj = user.toObject();
+  delete userObj.password;
+
   res.json({
     message: `welcome back ${user.name}`,
     token,
-    user,
+    user: userObj,
   });
 });
 
 export const myProfile = TryCatch(async (req, res) => {
-  const user = await User.findById(req.user._id);
+  const user = await User.findById(req.user._id).select("-password");
 
   res.json({ user });
 });
