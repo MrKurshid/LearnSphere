@@ -46,7 +46,7 @@ const CourseCard = ({ course }) => {
       {/* Thumbnail Header */}
       <div className="relative aspect-video overflow-hidden bg-gray-100">
         <img
-          src={`${server}/${course.image}`}
+          src={course.image?.startsWith("http") ? course.image : `${server}/${course.image}`}
           alt={course.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           onError={(e) => {

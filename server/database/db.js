@@ -1,15 +1,21 @@
 import mongoose from "mongoose";
 
+let isConnected = false;
+
 export const connectDb = async () => {
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
+  }
   try {
     if (!process.env.DB) {
-      console.error("[Database Error] process.env.DB environment variable is missing on server!");
-      return;
+      throw new Error("Database is not configured");
     }
-    await mongoose.connect(process.env.DB);
+    const db = await mongoose.connect(process.env.DB);
+    isConnected = db.connections[0].readyState === 1;
     console.log("Database Connected Successfully");
   } catch (error) {
     console.error("[Database Connection Error]:", error.message);
+    throw error;
   }
 };
 

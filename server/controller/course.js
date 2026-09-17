@@ -4,7 +4,16 @@ import { Courses } from "../models/courses.js";
 import { Lecture } from "../models/lecture.js";
 import { Payment } from "../models/payment.js";
 import { User } from "../models/user.js";
+import { getAuthenticatedVideoUrl } from "../utils/cloudinary.js";
 import crypto from "crypto";
+
+const serializeLecture = (lecture) => {
+  const result = lecture.toObject();
+  if (result.videoPublicId) {
+    result.video = getAuthenticatedVideoUrl(result.videoPublicId);
+  }
+  return result;
+};
 
 export const getAllCourses = TryCatch(async (req, res) => {
   const courses = await Courses.find();
@@ -15,6 +24,9 @@ export const getAllCourses = TryCatch(async (req, res) => {
 
 export const getSingleCourse = TryCatch(async (req, res) => {
   const course = await Courses.findById(req.params.id);
+  if (!course) {
+    return res.status(404).json({ message: "Course not found" });
+  }
   res.json({
     course,
   });
@@ -26,33 +38,36 @@ export const fetchLectures = TryCatch(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (user.role === "admin") {
-    return res.json({ lectures });
+    return res.json({ lectures: lectures.map(serializeLecture) });
   }
 
-  if (!user.subscription.includes(req.params.id))
+  if (!user.subscription.some((courseId) => courseId.toString() === req.params.id))
     return res.status(400).json({
       message: "You have not subscribed to this course",
     });
   res.json({
-    lectures,
+    lectures: lectures.map(serializeLecture),
   });
 });
 
 export const fetchLecture = TryCatch(async (req, res) => {
   const lecture = await Lecture.findById(req.params.id);
+  if (!lecture) {
+    return res.status(404).json({ message: "Lecture not found" });
+  }
 
   const user = await User.findById(req.user._id);
 
   if (user.role === "admin") {
-    return res.json({ lecture });
+    return res.json({ lecture: serializeLecture(lecture) });
   }
 
-  if (!user.subscription.includes(req.params.id))
+  if (!user.subscription.some((courseId) => courseId.toString() === lecture.course.toString()))
     return res.status(400).json({
       message: "You have not subscribed to this course",
     });
   res.json({
-    lecture,
+    lecture: serializeLecture(lecture),
   });
 });
 
@@ -81,22 +96,29 @@ export const checkOut = TryCatch(async (req, res) => {
     });
   }
 
-  let order;
-  try {
-    const options = {
-      amount: Number(course.price * 100),
-      currency: "INR",
-    };
-    order = await instance.orders.create(options);
-    console.log(`[Backend Checkout Success] Razorpay Order ID: ${order.id}`);
-  } catch (err) {
-    console.log(`[Backend Checkout Fallback] Razorpay error (${err.message}). Using test order fallback.`);
-    order = {
-      id: `order_test_${Date.now()}`,
-      amount: Number(course.price * 100),
-      currency: "INR",
-    };
+  if (!process.env.Razorpay_key || !process.env.Razorpay_Secret) {
+    return res.status(503).json({ message: "Payments are not configured" });
   }
+
+  const amount = Math.round(Number(course.price) * 100);
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    return res.status(400).json({ message: "Course has an invalid price" });
+  }
+
+  const order = await instance.orders.create({
+    amount,
+    currency: "INR",
+    receipt: `course_${course._id}_${Date.now()}`,
+    notes: { userId: user._id.toString(), courseId: course._id.toString() },
+  });
+
+  await Payment.create({
+    razorpay_order_id: order.id,
+    user: user._id,
+    course: course._id,
+    amount: order.amount,
+    currency: order.currency,
+  });
 
   res.status(201).json({
     order,
@@ -105,50 +127,58 @@ export const checkOut = TryCatch(async (req, res) => {
 });
 
 export const paymentVerification = TryCatch(async (req, res) => {
-  console.log(`[Backend Verification] Course: ${req.params.id}, Payload:`, req.body);
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-  let isAuthentic = false;
-
-  if (
-    razorpay_order_id?.startsWith("order_test_") ||
-    process.env.Razorpay_Secret === "razorpay_secret_placeholder" ||
-    !process.env.Razorpay_Secret
-  ) {
-    console.log("[Backend Verification] Test/Development environment auto-approved signature");
-    isAuthentic = true;
-  } else {
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.Razorpay_Secret)
-      .update(body)
-      .digest("hex");
-    isAuthentic = expectedSignature === razorpay_signature;
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    return res.status(400).json({ message: "Incomplete payment details" });
   }
 
-  if (isAuthentic) {
-    await Payment.create({
-      razorpay_order_id: razorpay_order_id || `order_${Date.now()}`,
-      razorpay_payment_id: razorpay_payment_id || `pay_${Date.now()}`,
-      razorpay_signature: razorpay_signature || `sig_${Date.now()}`,
-    });
-
-    const user = await User.findById(req.user._id);
-    const course = await Courses.findById(req.params.id);
-
-    if (!user.subscription.includes(course._id)) {
-      user.subscription.push(course._id);
-      await user.save();
-      console.log(`[Backend Verification Success] Added course ${course._id} to user ${user._id}`);
-    }
-
-    res.status(200).json({
-      message: "Course Purchased successfully",
-    });
-  } else {
-    console.log("[Backend Verification Failed] Signature mismatch");
-    return res.status(400).json({
-      message: "Payment Failed",
-    });
+  const payment = await Payment.findOne({
+    razorpay_order_id,
+    user: req.user._id,
+    course: req.params.id,
+  });
+  if (!payment || payment.status !== "created") {
+    return res.status(400).json({ message: "Payment order is invalid or already processed" });
   }
+
+  const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.Razorpay_Secret)
+    .update(body)
+    .digest("hex");
+  const isAuthentic =
+    razorpay_signature.length === expectedSignature.length &&
+    crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(razorpay_signature));
+
+  if (!isAuthentic) {
+    return res.status(400).json({ message: "Payment verification failed" });
+  }
+
+  const user = await User.findById(req.user._id);
+  const course = await Courses.findById(req.params.id);
+  if (!course) {
+    return res.status(404).json({ message: "Course not found" });
+  }
+
+  const completedPayment = await Payment.findOneAndUpdate(
+    { _id: payment._id, status: "created" },
+    {
+      $set: {
+        razorpay_payment_id,
+        razorpay_signature,
+        status: "paid",
+      },
+    },
+    { new: true }
+  );
+  if (!completedPayment) {
+    return res.status(400).json({ message: "Payment order is already processed" });
+  }
+
+  await User.updateOne(
+    { _id: req.user._id },
+    { $addToSet: { subscription: course._id } }
+  );
+
+  res.status(200).json({ message: "Course purchased successfully" });
 });

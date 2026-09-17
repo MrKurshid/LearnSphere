@@ -80,11 +80,18 @@ export const UserContextProvider = ({ children }) => {
   }
 
   async function fetchUser() {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setisAuth(false);
+      setLoading(false);
+      return;
+    }
+
     console.log("[API Call] GET /api/user/me");
     try {
       const { data } = await axios.get(`${server}/api/user/me`, {
         headers: {
-          token: localStorage.getItem("token"),
+          token,
         },
       });
       console.log("[API Response] GET /api/user/me user profile loaded:", data.user);
@@ -93,6 +100,8 @@ export const UserContextProvider = ({ children }) => {
       setLoading(false);
     } catch (error) {
       console.log("[API Info] GET /api/user/me - User not authenticated or invalid token:", error.response?.data?.message);
+      localStorage.removeItem("token");
+      setisAuth(false);
       setLoading(false);
     }
   }

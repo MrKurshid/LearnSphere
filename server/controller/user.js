@@ -4,6 +4,15 @@ import jwt from "jsonwebtoken";
 import sendMail from "../middlewares/sendmails.js";
 import TryCatch from "../middlewares/tryCatch.js";
 
+const escapeHtml = (value) =>
+  String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+
 export const register = TryCatch(async (req, res) => {
   const { email, name, password } = req.body;
 
@@ -20,14 +29,14 @@ export const register = TryCatch(async (req, res) => {
     });
   }
 
-  if (!process.env.Gmail && !process.env.SMTP_USER) {
+  if (!process.env.RESEND_API_KEY && !process.env.BREVO_API_KEY && !process.env.Gmail && !process.env.SMTP_USER) {
     console.error("[Config Error] Gmail environment variable is missing on server!");
     return res.status(500).json({
       message: "Server configuration error: Gmail environment variable is missing on Render dashboard.",
     });
   }
 
-  if (!process.env.Password && !process.env.SMTP_PASS) {
+  if (!process.env.RESEND_API_KEY && !process.env.BREVO_API_KEY && !process.env.Password && !process.env.SMTP_PASS) {
     console.error("[Config Error] Password (Gmail App Password) environment variable is missing on server!");
     return res.status(500).json({
       message: "Server configuration error: Password (16-character Google App Password) environment variable is missing on Render dashboard.",
@@ -63,7 +72,7 @@ export const register = TryCatch(async (req, res) => {
   );
 
   const data = {
-    name,
+    name: escapeHtml(name),
     otp,
   };
 
@@ -160,4 +169,3 @@ export const myProfile = TryCatch(async (req, res) => {
 
   res.json({ user });
 });
-

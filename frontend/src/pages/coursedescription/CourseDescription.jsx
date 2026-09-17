@@ -71,32 +71,8 @@ const CourseDescription = () => {
         rzpKey === "rzp_test_placeholder" ||
         rzpKey.includes("placeholder");
 
-      // If test fallback order, placeholder key, or script missing, execute direct verification
-      if (
-        data.order.id.startsWith("order_test_") ||
-        isPlaceholderKey ||
-        typeof window.Razorpay === "undefined"
-      ) {
-        console.log("[Checkout Flow] Test/Local environment detected. Completing purchase verification...");
-        const { data: verifyData } = await axios.post(
-          `${server}/api/verification/${params.id}`,
-          {
-            razorpay_order_id: data.order.id,
-            razorpay_payment_id: `pay_test_${Date.now()}`,
-            razorpay_signature: `sig_test_${Date.now()}`,
-          },
-          {
-            headers: {
-              token: localStorage.getItem("token"),
-            },
-          }
-        );
-
-        console.log("[Checkout Flow] Step 4: Verification successful:", verifyData.message);
-        toast.success(verifyData.message || "Course Enrolled Successfully");
-        await fetchUser();
-        setBtnLoading(false);
-        return navigate(`/course/study/${params.id}`);
+      if (isPlaceholderKey || typeof window.Razorpay === "undefined") {
+        throw new Error("Payments are not configured or the payment service failed to load");
       }
 
       // Razorpay Modal Integration with Key
@@ -143,30 +119,9 @@ const CourseDescription = () => {
       console.log("[Checkout Flow] Step 4: Opening Razorpay payment modal...");
       const razorpayWindow = new window.Razorpay(options);
       
-      razorpayWindow.on("payment.failed", async function (response) {
-        console.log("[Checkout Flow Info] Razorpay modal test response. Falling back to test verification...", response.error);
-        try {
-          const { data: verifyData } = await axios.post(
-            `${server}/api/verification/${params.id}`,
-            {
-              razorpay_order_id: data.order.id,
-              razorpay_payment_id: response.error?.metadata?.payment_id || `pay_test_${Date.now()}`,
-              razorpay_signature: `sig_test_${Date.now()}`,
-            },
-            {
-              headers: {
-                token: localStorage.getItem("token"),
-              },
-            }
-          );
-          toast.success(verifyData.message || "Course Enrolled Successfully");
-          await fetchUser();
-          setBtnLoading(false);
-          navigate(`/course/study/${params.id}`);
-        } catch (err) {
-          toast.error(response.error?.description || "Payment Failed");
-          setBtnLoading(false);
-        }
+      razorpayWindow.on("payment.failed", function (response) {
+        toast.error(response.error?.description || "Payment failed");
+        setBtnLoading(false);
       });
 
       razorpayWindow.open();
@@ -236,7 +191,7 @@ const CourseDescription = () => {
           <div className="lg:col-span-5 bg-[#FAFAFA] p-6 rounded-3xl border border-gray-100 text-center space-y-6">
             <div className="aspect-video rounded-2xl overflow-hidden shadow-md">
               <img
-                src={`${server}/${course.image}`}
+                src={course.image?.startsWith("http") ? course.image : `${server}/${course.image}`}
                 alt={course.title}
                 className="w-full h-full object-cover"
               />

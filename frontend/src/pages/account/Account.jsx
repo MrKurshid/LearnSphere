@@ -21,7 +21,9 @@ const Account = ({ user }) => {
 
   // Real subscribed courses from user DB object
   const mySubscribedCourses = courses
-    ? courses.filter((c) => user?.subscription?.includes(c._id))
+    ? courses.filter((course) =>
+        user?.subscription?.some((courseId) => courseId?.toString() === course._id?.toString())
+      )
     : [];
 
   const lastActiveCourse = mySubscribedCourses.length > 0 ? mySubscribedCourses[0] : null;

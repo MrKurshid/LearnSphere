@@ -1,10 +1,12 @@
 import axios from "axios";
 import { createContext, useContext, useEffect, useState } from "react";
 import { server } from "../main";
+import { userData } from "./UserContext";
 
 const CourseContext = createContext();
 
 export const CourseContextProvider = ({ children }) => {
+  const { isAuth, loading } = userData();
   const [courses, setCourses] = useState([]);
   const [course, setCourse] = useState([]);
   const [mycourse, setMyCourse] = useState([]);
@@ -32,11 +34,17 @@ export const CourseContextProvider = ({ children }) => {
   }
 
   async function fetchMyCourse() {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setMyCourse([]);
+      return;
+    }
+
     console.log("[API Call] GET /api/mycourse");
     try {
       const { data } = await axios.get(`${server}/api/mycourse`, {
         headers: {
-          token: localStorage.getItem("token"),
+          token,
         },
       });
       console.log(`[API Response] GET /api/mycourse returned ${data.courses?.length} subscribed courses`);
@@ -48,8 +56,17 @@ export const CourseContextProvider = ({ children }) => {
 
   useEffect(() => {
     fetchCourses();
-    fetchMyCourse();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (isAuth) {
+      fetchMyCourse();
+    } else {
+      setMyCourse([]);
+    }
+  }, [isAuth, loading]);
 
   return (
     <CourseContext.Provider

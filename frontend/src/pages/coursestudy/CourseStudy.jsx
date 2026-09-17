@@ -236,7 +236,7 @@ const CourseStudy = () => {
             <div className="bg-black rounded-3xl overflow-hidden shadow-md aspect-video relative flex items-center justify-center">
               {lecture && lecture.video ? (
                 <video
-                  src={`${server}/${lecture.video}`}
+                  src={lecture.video?.startsWith("http") ? lecture.video : `${server}/${lecture.video}`}
                   controls
                   controlsList="nodownload"
                   className="w-full h-full object-contain"

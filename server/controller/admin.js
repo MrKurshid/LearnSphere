@@ -1,22 +1,25 @@
 import TryCatch from "../middlewares/tryCatch.js";
 import { Courses } from "../models/courses.js";
 import { Lecture } from "../models/lecture.js";
-import { rm } from "fs";
-import { promisify } from "util";
-import fs from "fs";
 import { User } from "../models/user.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 export const createCourse = TryCatch(async (req, res) => {
   const { title, description, category, createdBy, duration, price } = req.body;
-
   const image = req.file;
+
+  if (!image) {
+    return res.status(400).json({ message: "Course thumbnail image is required" });
+  }
+
+  const cloudResult = await uploadToCloudinary(image.path, "learnsphere/courses");
 
   await Courses.create({
     title,
     description,
     category,
     createdBy,
-    image: image?.path,
+    image: cloudResult.url,
     duration,
     price,
   });
@@ -33,12 +36,22 @@ export const addLecture = TryCatch(async (req, res) => {
     });
 
   const { title, description } = req.body;
-
   const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ message: "Lecture video file is required" });
+  }
+
+  const cloudResult = await uploadToCloudinary(file.path, "learnsphere/lectures", {
+    resource_type: "video",
+    type: "authenticated",
+  });
+
   const lecture = await Lecture.create({
     title,
     description,
-    video: file?.path,
+    video: cloudResult.url,
+    videoPublicId: cloudResult.public_id,
     course: course._id,
   });
 
@@ -51,41 +64,40 @@ export const addLecture = TryCatch(async (req, res) => {
 export const deleteLecture = TryCatch(async (req, res) => {
   const lecture = await Lecture.findById(req.params.id);
 
-  rm(lecture.video, () => {
-    console.log("video Deleted");
-  });
-
-  await lecture.deleteOne();
+  if (lecture) {
+    await deleteFromCloudinary(lecture.videoPublicId || lecture.video);
+    await lecture.deleteOne();
+  }
 
   res.json({ message: "Lecture deleted" });
 });
 
-const unlinkAsync = promisify(fs.unlink);
-
 export const deleteCourse = TryCatch(async (req, res) => {
   const course = await Courses.findById(req.params.id);
+
+  if (!course) {
+    return res.status(404).json({ message: "Course not found" });
+  }
 
   const lectures = await Lecture.find({ course: course._id });
 
   await Promise.all(
     lectures.map(async (lecture) => {
-      await unlinkAsync(lecture.video);
-      console.log("video deleted");
+      await deleteFromCloudinary(lecture.videoPublicId || lecture.video);
     })
   );
-  rm(course.image, () => {
-    console.log("image Deleted");
-  });
+
+  await deleteFromCloudinary(course.image);
+
   await Lecture.find({ course: req.params.id }).deleteMany();
-
   await course.deleteOne();
-
   await User.updateMany({}, { $pull: { subscription: req.params.id } });
 
   res.json({
     message: "Course deleted",
   });
 });
+
 
 import { Payment } from "../models/payment.js";
 
